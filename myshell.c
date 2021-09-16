@@ -105,8 +105,12 @@ runcmd(struct cmd *cmd)
     	prcmd = (struct parcmd*)cmd;
     	if (fork1()==0){
     		runcmd(prcmd->left);
+    	}
+    	if (fork1()==0){
     		runcmd(prcmd->right);
     	}
+    	wait();
+    	wait();
     	break;
   }    
   exit(0);
@@ -413,7 +417,7 @@ parseexec(char **ps, char *es)
 
   argc = 0;
   ret = parseseq(ret, ps, es); //parseredirs
-  while(!peek(ps, es, ";")){ //|
+  while(!peek(ps, es, ";&")){ //|
     if((tok=gettoken(ps, es, &q, &eq)) == 0)
       break;
     if(tok != 'a') {
