@@ -93,25 +93,25 @@ runcmd(struct cmd *cmd)
     // Your code here ...
     break;
     
-    //added
-    case ';':
-    	scmd = (struct seqcmd*)cmd;
-    	if (fork1()==0){
-    		runcmd(scmd->cmd);
-    	}
-    	break;
-    
-    case '&':
-    	prcmd = (struct parcmd*)cmd;
-    	if (fork1()==0){
-    		runcmd(prcmd->left);
-    	}
-    	if (fork1()==0){
-    		runcmd(prcmd->right);
-    	}
-    	wait();
-    	wait();
-    	break;
+  //added
+  case ';':
+  	scmd = (struct seqcmd*)cmd;
+  	if (fork1()==0){
+    	runcmd(scmd->cmd);
+  	}
+  	break;
+ 
+  case '&':
+    prcmd = (struct parcmd*)cmd;
+   	if (fork1()==0){
+   		runcmd(prcmd->left);
+   	}
+   	if (fork1()==0){
+   		runcmd(prcmd->right);
+   	}
+   	wait();
+   	wait();
+   	break;
   }    
   exit(0);
 }
@@ -216,7 +216,7 @@ parcmd(struct cmd *left, struct cmd *right){
 }
 
 struct cmd*
-seqcmd(struct cmd *subcmd){
+seqcmd(struct cmd *subcmd, struct cmd *next){
 	struct seqcmd *cmd;
 	
 	cmd=malloc(sizeof(*cmd));
@@ -229,7 +229,7 @@ seqcmd(struct cmd *subcmd){
 // Parsing
 
 char whitespace[] = " \t\r\n\v";
-char symbols[] = "<|>";
+char symbols[] = "<|>;&";
 
 int
 gettoken(char **ps, char *es, char **q, char **eq)
@@ -247,7 +247,6 @@ gettoken(char **ps, char *es, char **q, char **eq)
     break;
   case '|':
   case ';':
-  	printf("found a ;\n");
   case '&':
   case '<':
     s++;
@@ -287,7 +286,7 @@ struct cmd *parsepipe(char**, char*);
 struct cmd *parseexec(char**, char*);
 
 //added
-struct cmd *parseseq(struct cmd*, char**, char*);
+struct cmd *parseseq(char**, char*);
 struct cmd *parsepara(char**, char*);
 // make a copy of the characters in the input buffer, starting from s through es.
 // null-terminate the copy to make it a string.
@@ -321,7 +320,19 @@ struct cmd*
 parseline(char **ps, char *es)
 {
   struct cmd *cmd;
+  cmd=parsepipe(ps,es);
   //added
+  //cmd=parsepara(ps,es);
+  if(peek(ps,es,";")){
+		gettoken(ps,es,0,0);
+		cmd=seqcmd(cmd,parseline(ps,es));  
+  }
+  
+  if(peek(ps,es,"&")){
+  	gettoken(ps,es,0,0);
+  	cmd=parcmd(cmd,parseline(ps,es));
+  }
+  
   /*
   int a;
   while(!peek(ps,es,";&")){
@@ -330,8 +341,8 @@ parseline(char **ps, char *es)
 	a = peek(ps,es,";&");
 	printf("%d\n",a);
 	*/
-  cmd=parsepara(ps,es);
   //cmd = parsepipe(ps, es);
+  
   return cmd;
 }
 
@@ -375,10 +386,10 @@ parseredirs(struct cmd *cmd, char **ps, char *es)
 
 //added
 struct cmd*
-parseseq(struct cmd *cmd, char **ps, char *es){
+parseseq(char **ps, char *es){
 	int tok;
   char *q, *eq;
-
+	struct cmd *cmd;
   while(peek(ps, es, ";")){
     tok = gettoken(ps, es, 0, 0);
     /*
@@ -387,7 +398,7 @@ parseseq(struct cmd *cmd, char **ps, char *es){
       exit(-1);
     }
     */
-    cmd=seqcmd(cmd);
+    cmd=seqcmd(cmd,parseseq(ps,es));
   }
   return cmd;
 }
@@ -416,7 +427,7 @@ parseexec(char **ps, char *es)
   cmd = (struct execcmd*)ret;
 
   argc = 0;
-  ret = parseseq(ret, ps, es); //parseredirs
+  ret = parseredirs(ret, ps, es); //parseseq
   while(!peek(ps, es, ";&")){ //|
     if((tok=gettoken(ps, es, &q, &eq)) == 0)
       break;
@@ -430,7 +441,7 @@ parseexec(char **ps, char *es)
       fprintf(stderr, "too many args\n");
       exit(-1);
     }
-    ret = parseseq(ret, ps, es); //parseredirs
+    ret = parseredirs(ret, ps, es); //parseseq
   }
   cmd->argv[argc] = 0;
   return ret;
