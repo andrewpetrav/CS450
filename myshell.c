@@ -60,7 +60,7 @@ runcmd(struct cmd *cmd)
   struct execcmd *ecmd;
   struct pipecmd *pcmd;
   struct redircmd *rcmd;
-  //added
+  //create structs for sequence and parallel
   struct seqcmd *scmd;
   struct parcmd *prcmd;
 
@@ -94,24 +94,26 @@ runcmd(struct cmd *cmd)
     // Your code here ...
     break;
     
-  //added
+  //if sequence command
   case ';':
-  	scmd = (struct seqcmd*)cmd;
+  	scmd = (struct seqcmd*)cmd; //create struct
   	if (fork1()==0){
-    	runcmd(scmd->left);
+    	runcmd(scmd->left); //run what's to the left of the ;
   	}
   	wait();
-  	runcmd(scmd->right);
+  	runcmd(scmd->right); //continue
   	break;
-  //different
+	//if parallel command
   case '&':
-    prcmd = (struct parcmd*)cmd;
-   	if (fork1()==0){
-   		runcmd(prcmd->left);
+    prcmd = (struct parcmd*)cmd; //create struct
+    
+   	if (fork1()==0){ 
+   		runcmd(prcmd->left); //execute left side
    	}
-   	if (fork1()==0){
-   		runcmd(prcmd->right);
+   	if (fork1()==0){ 
+   		runcmd(prcmd->right);//execute right 
    	}
+   	//waits are here so that they run in parallel
    	wait();
    	wait();
    	break;
@@ -205,6 +207,7 @@ pipecmd(struct cmd *left, struct cmd *right)
   return (struct cmd*)cmd;
 }
 
+//create cmd structs for parallel and sequence
 struct cmd*
 parcmd(struct cmd *left, struct cmd *right){
 	struct parcmd *cmd;
@@ -233,7 +236,7 @@ seqcmd(struct cmd *left, struct cmd *right){
 // Parsing
 
 char whitespace[] = " \t\r\n\v";
-char symbols[] = "<|>;&";
+char symbols[] = "<|>;&"; //added sequence and parallel symbols
 
 int
 gettoken(char **ps, char *es, char **q, char **eq)
@@ -325,8 +328,8 @@ parseline(char **ps, char *es)
 {
   struct cmd *cmd;
   cmd=parsepipe(ps,es);
-  //added
-  //cmd=parsepara(ps,es);
+  //see if any parallel or sequence tokens
+  //if so, create the commands
   if(peek(ps,es,";")){
 		gettoken(ps,es,0,0);
 		cmd=seqcmd(cmd,parseline(ps,es));  
@@ -336,17 +339,7 @@ parseline(char **ps, char *es)
   	gettoken(ps,es,0,0);
   	cmd=parcmd(cmd,parseline(ps,es));
   }
-  
-  /*
-  int a;
-  while(!peek(ps,es,";&")){
-  
-  }
-	a = peek(ps,es,";&");
-	printf("%d\n",a);
-	*/
-  //cmd = parsepipe(ps, es);
-  
+ 
   return cmd;
 }
 
@@ -388,7 +381,8 @@ parseredirs(struct cmd *cmd, char **ps, char *es)
   return cmd;
 }
 
-//added
+//self-explanatory parse structs that just find the 
+//commands to execute
 struct cmd*
 parseseq(char **ps, char *es){
 	int tok;
@@ -396,12 +390,6 @@ parseseq(char **ps, char *es){
 	struct cmd *cmd;
   while(peek(ps, es, ";")){
     tok = gettoken(ps, es, 0, 0);
-    /*
-    if(gettoken(ps, es, &q, &eq) != 'a') {
-      fprintf(stderr, "missing file for redirection\n");
-      exit(-1);
-    }
-    */
     cmd=seqcmd(cmd,parseseq(ps,es));
   }
   return cmd;
@@ -431,8 +419,8 @@ parseexec(char **ps, char *es)
   cmd = (struct execcmd*)ret;
 
   argc = 0;
-  ret = parseredirs(ret, ps, es); //parseseq
-  while(!peek(ps, es, ";&")){ //|
+  ret = parseredirs(ret, ps, es); 
+  while(!peek(ps, es, ";&")){ 
     if((tok=gettoken(ps, es, &q, &eq)) == 0)
       break;
     if(tok != 'a') {
@@ -445,7 +433,7 @@ parseexec(char **ps, char *es)
       fprintf(stderr, "too many args\n");
       exit(-1);
     }
-    ret = parseredirs(ret, ps, es); //parseseq
+    ret = parseredirs(ret, ps, es); 
   }
   cmd->argv[argc] = 0;
   return ret;
