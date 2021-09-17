@@ -106,7 +106,7 @@ runcmd(struct cmd *cmd)
 	//if parallel command
   case '&':
     prcmd = (struct parcmd*)cmd; //create struct
-    
+		
    	if (fork1()==0){ 
    		runcmd(prcmd->left); //execute left side
    	}
@@ -398,7 +398,7 @@ parseseq(char **ps, char *es){
 struct cmd*
 parsepara(char **ps, char *es)
 {
-  struct cmd *cmd;
+  struct  cmd *cmd;
 
   cmd = parseexec(ps, es);
   if(peek(ps, es, "&")){
@@ -435,6 +435,7 @@ parseexec(char **ps, char *es)
     }
     ret = parseredirs(ret, ps, es); 
   }
+
   cmd->argv[argc] = 0;
   return ret;
 }
