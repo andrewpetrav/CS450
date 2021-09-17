@@ -39,7 +39,8 @@ struct pipecmd {
 //added
 struct seqcmd{
 	int type; //;
-	struct cmd *cmd;
+	struct cmd *left;
+	struct cmd *right;
 };
 
 struct parcmd{
@@ -97,10 +98,12 @@ runcmd(struct cmd *cmd)
   case ';':
   	scmd = (struct seqcmd*)cmd;
   	if (fork1()==0){
-    	runcmd(scmd->cmd);
+    	runcmd(scmd->left);
   	}
+  	wait();
+  	runcmd(scmd->right);
   	break;
- 
+  //different
   case '&':
     prcmd = (struct parcmd*)cmd;
    	if (fork1()==0){
@@ -216,13 +219,14 @@ parcmd(struct cmd *left, struct cmd *right){
 }
 
 struct cmd*
-seqcmd(struct cmd *subcmd, struct cmd *next){
+seqcmd(struct cmd *left, struct cmd *right){
 	struct seqcmd *cmd;
 	
 	cmd=malloc(sizeof(*cmd));
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->type=';';
-	cmd->cmd=subcmd;
+	cmd->left=left;
+	cmd->right=right;
 	
 	return (struct cmd*)cmd;
 }
